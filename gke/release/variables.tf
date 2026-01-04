@@ -10,12 +10,13 @@ variable "GOOGLE_REGION" {
 
 variable "github_owner" {
   type        = string
-  description = "GitHub username"
+  description = "GitHub owner"
 }
 
 variable "github_token" {
   type        = string
-  description = "GitHub personal access token"
+  sensitive   = true
+  description = "GitHub token"
 }
 
 variable "repository_name" {
@@ -25,6 +26,18 @@ variable "repository_name" {
 
 variable "TTOKEN" {
   type        = string
-  description = "Telegram Bot Token"
   sensitive   = true
+  description = "Telegram Bot Token"
+}
+
+variable "target_namespace" {
+  type        = string
+  default     = "demo"
+  description = "Target namespace for the application"
+}
+
+variable "image_arch" {
+  type        = string
+  default     = "amd64"
+  description = "Image architecture (amd64 or arm64)"
 }

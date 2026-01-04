@@ -15,6 +15,7 @@ metadata:
   name: kbot
   namespace: flux-system
 spec:
+  targetNamespace: ${target_namespace}
   interval: 1m
   chart:
     spec:
@@ -25,5 +26,7 @@ spec:
       interval: 1m
   values:
     replicaCount: 1
+    image:
+      arch: ${image_arch}
     args:
       - kbot

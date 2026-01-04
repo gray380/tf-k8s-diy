@@ -1,10 +1,7 @@
-provider "github" {
-  owner = var.github_owner
-  token = var.github_token
-}
-
-provider "kubernetes" {
-  config_path = "${path.module}/../kubeconfig"
+resource "kubernetes_namespace_v1" "this" {
+  metadata {
+    name = var.target_namespace
+  }
 }
 
 resource "github_repository_file" "kbot_manifest" {
@@ -12,7 +9,9 @@ resource "github_repository_file" "kbot_manifest" {
   branch     = "main"
   file       = "clusters/kbot.yaml"
   content = templatefile("${path.module}/../../templates/kbot.yaml.tftpl", {
-    github_owner = var.github_owner
+    github_owner     = var.github_owner
+    target_namespace = var.target_namespace
+    image_arch       = var.image_arch
   })
   overwrite_on_create = true
 }
@@ -20,7 +19,7 @@ resource "github_repository_file" "kbot_manifest" {
 resource "kubernetes_secret_v1" "kbot" {
   metadata {
     name      = "kbot"
-    namespace = "flux-system"
+    namespace = kubernetes_namespace_v1.this.metadata[0].name
   }
 
   data = {
@@ -33,7 +32,7 @@ resource "kubernetes_secret_v1" "kbot" {
 resource "kubernetes_secret_v1" "ghcr_secret" {
   metadata {
     name      = "ghcr-secret"
-    namespace = "flux-system"
+    namespace = kubernetes_namespace_v1.this.metadata[0].name
   }
 
   data = {
