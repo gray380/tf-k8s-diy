@@ -17,10 +17,12 @@ resource "github_repository_file" "kbot_manifest" {
 }
 
 resource "github_repository_file" "kbot_secrets" {
-  repository          = var.repository_name
-  branch              = "main"
-  file                = "clusters/secrets.yaml"
-  content             = templatefile("${path.module}/../../templates/secrets.yaml.tftpl", {})
+  repository = var.repository_name
+  branch     = "main"
+  file       = "clusters/secrets.yaml"
+  content = templatefile("${path.module}/../../templates/secrets.yaml.tftpl", {
+    target_namespace = var.target_namespace
+  })
   overwrite_on_create = true
 }
 
