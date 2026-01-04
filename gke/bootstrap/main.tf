@@ -121,18 +121,7 @@ resource "github_repository_file" "flux_kustomization" {
   repository          = var.repository_name
   branch              = "main"
   file                = "flux-system/kustomization.yaml"
-  content             = <<-EOT
-    apiVersion: kustomize.config.k8s.io/v1beta1
-    kind: Kustomization
-    resources:
-      - gotk-components.yaml
-      - gotk-sync.yaml
-    patches:
-      - path: kustomize-controller-patch.yaml
-        target:
-          kind: ServiceAccount
-          name: kustomize-controller
-  EOT
+  content             = templatefile("${path.module}/../../templates/flux-kustomization.yaml.tftpl", {})
   overwrite_on_create = true
   depends_on          = [module.flux_bootstrap]
 }
