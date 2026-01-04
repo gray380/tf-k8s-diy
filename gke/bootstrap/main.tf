@@ -52,10 +52,9 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   display_name                       = "GitHub Actions Provider"
   description                        = "OIDC Provider for GitHub Actions"
   attribute_mapping = {
-    "google.subject"       = "assertion.sub"
-    "attribute.actor"      = "assertion.actor"
-    "attribute.repository" = "assertion.repository"
+    "google.subject" = "assertion.sub"
   }
+  attribute_condition = "assertion.repository == '${var.github_owner}/${var.repository_name}'"
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
@@ -95,7 +94,7 @@ resource "google_kms_crypto_key_iam_member" "flux_decrypter" {
 resource "google_service_account_iam_member" "gha_wif_binding" {
   service_account_id = google_service_account.gha_sa.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_owner}/${var.repository_name}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/*"
 }
 
 # Allow Flux KSA to impersonate flux_sa
