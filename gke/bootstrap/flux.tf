@@ -35,3 +35,24 @@ module "flux_bootstrap" {
   config_path       = local_file.kubeconfig.filename
   github_token      = var.github_token
 }
+
+# Deploy Flux SA patch to enable Workload Identity
+resource "github_repository_file" "flux_sa_patch" {
+  repository = var.repository_name
+  branch     = "main"
+  file       = "flux-system/kustomize-controller-patch.yaml"
+  content = templatefile("${path.module}/../../templates/flux-sa-patch.yaml.tftpl", {
+    flux_sa_email = google_service_account.flux_sa.email
+  })
+  overwrite_on_create = true
+}
+
+# Kustomization to apply the patch
+resource "github_repository_file" "flux_kustomization" {
+  repository          = var.repository_name
+  branch              = "main"
+  file                = "flux-system/kustomization.yaml"
+  content             = templatefile("${path.module}/../../templates/flux-kustomization.yaml.tftpl", {})
+  overwrite_on_create = true
+  depends_on          = [module.flux_bootstrap]
+}

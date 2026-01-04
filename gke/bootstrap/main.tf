@@ -105,26 +105,6 @@ resource "google_service_account_iam_member" "flux_wif_binding" {
   member             = "serviceAccount:${var.GOOGLE_PROJECT}.svc.id.goog[flux-system/kustomize-controller]"
 }
 
-# Deploy Flux SA patch to enable Workload Identity
-resource "github_repository_file" "flux_sa_patch" {
-  repository = var.repository_name
-  branch     = "main"
-  file       = "flux-system/kustomize-controller-patch.yaml"
-  content = templatefile("${path.module}/../../templates/flux-sa-patch.yaml.tftpl", {
-    flux_sa_email = google_service_account.flux_sa.email
-  })
-  overwrite_on_create = true
-}
-
-# Kustomization to apply the patch
-resource "github_repository_file" "flux_kustomization" {
-  repository          = var.repository_name
-  branch              = "main"
-  file                = "flux-system/kustomization.yaml"
-  content             = templatefile("${path.module}/../../templates/flux-kustomization.yaml.tftpl", {})
-  overwrite_on_create = true
-  depends_on          = [module.flux_bootstrap]
-}
 
 output "workload_identity_provider" {
   value = google_iam_workload_identity_pool_provider.github.name
