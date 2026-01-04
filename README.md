@@ -107,3 +107,139 @@ terraform destroy -auto-approve
 
 > [!NOTE]
 > **Kubeconfig Management**: You do not need to create `kubeconfig` files manually. Terraform will automatically generate a local `kubeconfig` file in the `kind/` or `gke/` directory during the first `terraform apply`.
+
+---
+
+## 🔐 Advanced Secret Management (SOPS + KMS) - GKE Only
+
+The GKE environment uses a **Senior-level** SOPS-KMS workflow for secure secret management. Secrets are stored in GCP Secret Manager, encrypted with SOPS using Cloud KMS, and automatically deployed via GitHub Actions.
+
+### Architecture Overview
+
+```
+GCP Secret Manager → GitHub Actions → SOPS Encryption → flux-config-gke repo → Flux → Kubernetes Secret
+     (TTOKEN)           (WIF Auth)      (KMS Key)         (encrypted)        (decrypts)    (demo namespace)
+```
+
+### Prerequisites for SOPS-KMS
+
+1. **Create Secret in GCP Secret Manager**
+
+```bash
+# Set your project
+export GOOGLE_PROJECT="your-project-id"
+gcloud config set project $GOOGLE_PROJECT
+
+# Create the TELE_TOKEN secret
+echo -n "YOUR_TELEGRAM_BOT_TOKEN" | gcloud secrets create TELE_TOKEN \
+  --data-file=- \
+  --replication-policy="automatic"
+
+# Verify creation
+gcloud secrets describe TELE_TOKEN
+gcloud secrets versions access latest --secret="TELE_TOKEN"
+```
+
+2. **Apply Bootstrap Infrastructure**
+
+```bash
+cd gke/bootstrap
+terraform init
+terraform apply -var-file=terraform.tfvars
+```
+
+**Save these outputs:**
+- `workload_identity_provider` - For GitHub Actions authentication
+- `gha_service_account` - For GitHub Actions authentication
+
+3. **Configure GitHub Repository**
+
+Add these **Secrets** at `https://github.com/YOUR_USERNAME/tf-k8s-diy/settings/secrets/actions`:
+
+| Secret Name | Value | Source |
+|-------------|-------|--------|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/123.../providers/github-provider` | Terraform output |
+| `GCP_SERVICE_ACCOUNT` | `gha-sa@PROJECT.iam.gserviceaccount.com` | Terraform output |
+| `GH_PAT` | Your GitHub Personal Access Token | [Create here](https://github.com/settings/tokens) |
+
+Add this **Variable**:
+
+| Variable Name | Value |
+|---------------|-------|
+| `GOOGLE_PROJECT` | Your GCP Project ID |
+
+4. **Trigger Secret Encryption Workflow**
+
+The workflow `.github/workflows/encrypt-secrets.yaml` will:
+- Fetch `TELE_TOKEN` from Secret Manager
+- Encrypt it with SOPS using Cloud KMS
+- Commit encrypted secret to `flux-config-gke` repository
+
+Trigger manually:
+```bash
+gh workflow run encrypt-secrets.yaml --ref main
+# Or via GitHub UI: Actions → Encrypt Secrets → Run workflow
+```
+
+5. **Apply Release Configuration**
+
+```bash
+cd ../release
+terraform init
+terraform apply -var-file=terraform.tfvars
+```
+
+Flux will automatically decrypt and apply the secret to the `demo` namespace.
+
+### Verification
+
+```bash
+# Get GKE credentials
+gcloud container clusters get-credentials <cluster-name> --region=<region>
+
+# Check Flux reconciliation
+flux get kustomizations -n flux-system
+
+# Verify secret exists and is decrypted
+kubectl get secret kbot -n demo
+kubectl get secret kbot -n demo -o jsonpath='{.data.token}' | base64 -d
+
+# Check kbot pod
+kubectl get pods -n demo
+kubectl logs -n demo -l app.kubernetes.io/name=kbot
+```
+
+### Secret Rotation
+
+To update the Telegram token:
+
+```bash
+# Update secret in Secret Manager
+echo -n "NEW_TELEGRAM_TOKEN" | gcloud secrets versions add TELE_TOKEN --data-file=-
+
+# Trigger the encryption workflow again
+gh workflow run encrypt-secrets.yaml --ref main
+
+# Flux will automatically pick up the change and update the pod
+```
+
+### Cleanup
+
+```bash
+# Delete the secret from Secret Manager
+gcloud secrets delete TELE_TOKEN
+
+# Destroy Terraform resources
+cd gke/release
+terraform destroy -var-file=terraform.tfvars
+
+cd ../bootstrap
+terraform destroy -var-file=terraform.tfvars
+```
+
+> [!WARNING]
+> **Cost**: GCP Secret Manager is free for up to 6 secret versions and 10,000 accesses/month. Your usage will be $0.00/month.
+
+> [!IMPORTANT]
+> **Kind Environment**: The local Kind environment does NOT use SOPS-KMS. It continues to use plain Kubernetes secrets managed directly by Terraform for simplicity.
+
