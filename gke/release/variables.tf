@@ -24,11 +24,6 @@ variable "repository_name" {
   description = "GitHub repository name"
 }
 
-variable "TTOKEN" {
-  type        = string
-  sensitive   = true
-  description = "Telegram Bot Token"
-}
 
 variable "target_namespace" {
   type        = string

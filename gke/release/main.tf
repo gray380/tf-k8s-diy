@@ -24,18 +24,6 @@ resource "github_repository_file" "kbot_secrets" {
   overwrite_on_create = true
 }
 
-resource "kubernetes_secret_v1" "kbot" {
-  metadata {
-    name      = "kbot"
-    namespace = kubernetes_namespace_v1.this.metadata[0].name
-  }
-
-  data = {
-    token = var.TTOKEN
-  }
-
-  type = "Opaque"
-}
 
 resource "kubernetes_secret_v1" "ghcr_secret" {
   metadata {
