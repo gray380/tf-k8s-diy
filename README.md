@@ -72,7 +72,7 @@ Check both the **Terraform State** and the **Cluster State**.
 *   **Infrastructure (Bootstrap)**: 
     *   Verify Flux pods: `kubectl --kubeconfig=../kubeconfig get pods -n flux-system`
 *   **Application (Release)**:
-    *   Verify kbot pod: `kubectl --kubeconfig=../kubeconfig get pods -n flux-system -l app.kubernetes.io/name=kbot`
+    *   Verify kbot pod: `kubectl --kubeconfig=../kubeconfig get pods -n demo -l app.kubernetes.io/name=kbot`
     *   Check Flux status: `flux --kubeconfig=../kubeconfig get all`
 *   **Terraform Plan**: Run `terraform plan` in any directory to ensure no drift exist.
 
