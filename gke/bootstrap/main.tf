@@ -52,9 +52,10 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   display_name                       = "GitHub Actions Provider"
   description                        = "OIDC Provider for GitHub Actions"
   attribute_mapping = {
-    "google.subject" = "assertion.sub"
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
   }
-  attribute_condition = "assertion.repository == '${var.github_owner}/${var.repository_name}'"
+  attribute_condition = "assertion.repository_owner == '${var.github_owner}'"
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
