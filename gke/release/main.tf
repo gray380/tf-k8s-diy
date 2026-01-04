@@ -16,6 +16,14 @@ resource "github_repository_file" "kbot_manifest" {
   overwrite_on_create = true
 }
 
+resource "github_repository_file" "kbot_secrets" {
+  repository          = var.repository_name
+  branch              = "main"
+  file                = "clusters/secrets.yaml"
+  content             = templatefile("${path.module}/../../templates/secrets.yaml.tftpl", {})
+  overwrite_on_create = true
+}
+
 resource "kubernetes_secret_v1" "kbot" {
   metadata {
     name      = "kbot"
