@@ -37,7 +37,7 @@ resource "google_kms_crypto_key" "key" {
 
 resource "google_iam_workload_identity_pool" "github" {
   provider                  = google-beta
-  workload_identity_pool_id = "github-pool"
+  workload_identity_pool_id = "github-pool-v3"
   project                   = var.GOOGLE_PROJECT
   display_name              = "GitHub Actions Pool"
   description               = "Identity pool for GitHub Actions"
@@ -47,7 +47,7 @@ resource "google_iam_workload_identity_pool" "github" {
 resource "google_iam_workload_identity_pool_provider" "github" {
   provider                           = google-beta
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
-  workload_identity_pool_provider_id = "github-provider"
+  workload_identity_pool_provider_id = "github-provider-v3"
   project                            = var.GOOGLE_PROJECT
   display_name                       = "GitHub Actions Provider"
   description                        = "OIDC Provider for GitHub Actions"

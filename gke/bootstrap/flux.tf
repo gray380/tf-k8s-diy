@@ -40,10 +40,19 @@ module "flux_bootstrap" {
 resource "github_repository_file" "flux_sa_patch" {
   repository = var.repository_name
   branch     = "main"
-  file       = "flux-system/kustomize-controller-patch.yaml"
+  file       = "clusters/flux-system/kustomize-controller-patch.yaml"
   content = templatefile("${path.module}/../../templates/flux-sa-patch.yaml.tftpl", {
     flux_sa_email = google_service_account.flux_sa.email
   })
+  overwrite_on_create = true
+}
+
+# Deploy Flux decryption patch
+resource "github_repository_file" "flux_decryption_patch" {
+  repository          = var.repository_name
+  branch              = "main"
+  file                = "clusters/flux-system/flux-decryption-patch.yaml"
+  content             = templatefile("${path.module}/../../templates/flux-decryption-patch.yaml.tftpl", {})
   overwrite_on_create = true
 }
 
@@ -51,7 +60,7 @@ resource "github_repository_file" "flux_sa_patch" {
 resource "github_repository_file" "flux_kustomization" {
   repository          = var.repository_name
   branch              = "main"
-  file                = "flux-system/kustomization.yaml"
+  file                = "clusters/flux-system/kustomization.yaml"
   content             = templatefile("${path.module}/../../templates/flux-kustomization.yaml.tftpl", {})
   overwrite_on_create = true
   depends_on          = [module.flux_bootstrap]

@@ -8,3 +8,7 @@ patches:
     target:
       kind: ServiceAccount
       name: kustomize-controller
+  - path: flux-decryption-patch.yaml
+    target:
+      kind: Kustomization
+      name: flux-system
