@@ -226,19 +226,66 @@ gh workflow run encrypt-secrets.yaml --ref main
 ### Cleanup
 
 ```bash
-# Delete the secret from Secret Manager
-gcloud secrets delete TELE_TOKEN
-
-# Destroy Terraform resources
+# 1. Destroy GKE resources
 cd gke/release
-terraform destroy -var-file=terraform.tfvars
+terraform destroy -var-file=terraform.tfvars -auto-approve
 
 cd ../bootstrap
-terraform destroy -var-file=terraform.tfvars
+# Note: You may need to remove 'prevent_destroy = true' from kms key in main.tf
+terraform destroy -var-file=terraform.tfvars -auto-approve
+
+# 2. Delete the secret from Secret Manager (Optional)
+gcloud secrets delete TELE_TOKEN
 ```
 
+---
+
+## 🔄 GKE Full Redeployment (Clean Start)
+
+If you have destroyed the environment and want to start over, follow this procedure to avoid "already exists" conflicts and Flux deadlocks.
+
+### 1. Clear the Configuration Repository
+Flux bootstrap fails if it finds existing manifests. Purge the `clusters/` folder in your `flux-config-gke` repo:
+```bash
+# You can use the purge_repo.py script in gke/bootstrap/
+python3 gke/bootstrap/purge_repo.py clusters/
+```
+
+### 2. Restore the KMS Key
+GCP schedules KMS keys for destruction for 24 hours. You must restore and enable it before Terraform can manage it again:
+```bash
+gcloud kms keys versions restore 1 --location=global --keyring=sops-key-ring --key=sops-key --project=YOUR_PROJECT_ID
+gcloud kms keys versions enable 1 --location=global --keyring=sops-key-ring --key=sops-key --project=YOUR_PROJECT_ID
+```
+
+### 3. Handle Workload Identity Tombstones
+GCP "soft-deletes" Identity Pools for 30 days. To redeploy immediately, you **must increment the version** in `gke/bootstrap/main.tf`:
+```hcl
+# main.tf
+workload_identity_pool_id          = "github-pool-v4"      # Increment this (v3, v4, v5...)
+workload_identity_pool_provider_id = "github-provider-v4"  # Increment this
+```
+
+### 4. Deploy Infrastructure
+```bash
+cd gke/bootstrap
+terraform apply -var-file=terraform.tfvars -auto-approve
+```
+*If it fails with "KeyRing already exists", simply import it:*
+```bash
+terraform import google_kms_key_ring.key_ring projects/YOUR_PROJECT_ID/locations/global/keyRings/sops-key-ring
+terraform apply -var-file=terraform.tfvars -auto-approve
+```
+
+### 5. Update & Sync
+1. Update **`GCP_WORKLOAD_IDENTITY_PROVIDER`** in GitHub Actions secrets with the new `v4` ID from the Terraform output.
+2. Manually trigger the **"Encrypt Secrets"** workflow in the Actions tab.
+3. Flux will now pick up the secret, decrypt it, and start the `kbot` pod.
+
+---
+
 > [!WARNING]
-> **Cost**: GCP Secret Manager is free for up to 6 secret versions and 10,000 accesses/month. Your usage will be $0.00/month.
+> **Cost**: GCP Secret Manager is free for up to 6 secret versions and 10,000 accesses/month. Cloud KMS costs ~$0.06/month.
 
 > [!IMPORTANT]
 > **Kind Environment**: The local Kind environment does NOT use SOPS-KMS. It continues to use plain Kubernetes secrets managed directly by Terraform for simplicity.
