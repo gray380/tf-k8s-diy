@@ -33,6 +33,10 @@ resource "google_kms_key_ring" "key_ring" {
 resource "google_kms_crypto_key" "key" {
   name     = "sops-key"
   key_ring = google_kms_key_ring.key_ring.id
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_iam_workload_identity_pool" "github" {
